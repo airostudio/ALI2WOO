@@ -1,0 +1,401 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  role          UserRole  @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orders        Order[]
+  store         Store?
+
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  STORE_OWNER
+  ADMIN
+}
+
+model Store {
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  domain          String?   @unique
+  currency        String    @default("USD")
+  language        String    @default("en")
+  timezone        String    @default("UTC")
+
+  // Branding
+  logo            String?
+  primaryColor    String    @default("#3B82F6")
+  secondaryColor  String    @default("#10B981")
+
+  // Settings
+  autoImport      Boolean   @default(false)
+  autoOrder       Boolean   @default(false)
+  minRating       Float     @default(4.5)
+  maxShippingDays Int       @default(30)
+
+  ownerId         String    @unique
+  owner           User      @relation(fields: [ownerId], references: [id])
+
+  products        Product[]
+  orders          Order[]
+  marginRules     MarginRule[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("stores")
+}
+
+model Product {
+  id                  String    @id @default(uuid())
+  aliexpressId        String
+  aliexpressUrl       String
+
+  title               String
+  description         String    @db.Text
+  category            String
+  tags                String[]
+
+  // Pricing
+  supplierPrice       Float
+  sellingPrice        Float
+  compareAtPrice      Float?
+  costPrice           Float
+  shippingCost        Float     @default(0)
+  profit              Float
+  marginPercent       Float
+
+  // Inventory
+  stock               Int       @default(0)
+  stockStatus         StockStatus @default(IN_STOCK)
+
+  // Media
+  images              String[]
+  mainImage           String
+  videoUrl            String?
+
+  // Supplier info
+  supplierName        String
+  supplierRating      Float
+  supplierUrl         String
+
+  // Shipping
+  estimatedDeliveryMin Int
+  estimatedDeliveryMax Int
+  shipsFrom           String
+
+  // Quality metrics
+  qualityScore        Float     @default(0)
+  reviewCount         Int       @default(0)
+  averageRating       Float     @default(0)
+
+  // SEO
+  metaTitle           String?
+  metaDescription     String?
+
+  // Status
+  status              ProductStatus @default(DRAFT)
+  isActive            Boolean   @default(true)
+
+  storeId             String
+  store               Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  orderItems          OrderItem[]
+  variants            ProductVariant[]
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  lastSyncedAt        DateTime?
+
+  @@unique([storeId, aliexpressId])
+  @@index([storeId, status])
+  @@index([aliexpressId])
+  @@map("products")
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+model ProductVariant {
+  id              String    @id @default(uuid())
+  sku             String    @unique
+
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  variantName     String
+  attributes      Json      // e.g., {"Color": "Red", "Size": "XL"}
+
+  supplierPrice   Float
+  sellingPrice    Float
+  stock           Int       @default(0)
+  image           String?
+
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("product_variants")
+}
+
+model MarginRule {
+  id            String    @id @default(uuid())
+  name          String
+  priority      Int       @default(0)
+
+  // Conditions
+  minPrice      Float?
+  maxPrice      Float?
+  category      String?
+  supplier      String?
+
+  // Margin settings
+  marginType    MarginType
+  marginValue   Float
+
+  storeId       String
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  isActive      Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("margin_rules")
+}
+
+enum MarginType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  MULTIPLIER
+}
+
+model Order {
+  id                String      @id @default(uuid())
+  orderNumber       String      @unique
+
+  // Customer info
+  customerId        String?
+  customer          User?       @relation(fields: [customerId], references: [id])
+  customerEmail     String
+  customerName      String
+
+  // Shipping address
+  shippingAddress   Json
+  billingAddress    Json
+
+  // Order details
+  subtotal          Float
+  shippingCost      Float
+  taxAmount         Float
+  discount          Float       @default(0)
+  totalAmount       Float
+
+  // Supplier cost
+  supplierCost      Float
+  profit            Float
+
+  currency          String      @default("USD")
+
+  // Status
+  orderStatus       OrderStatus @default(PENDING)
+  paymentStatus     PaymentStatus @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+
+  // Payment
+  paymentMethod     String?
+  paymentId         String?
+
+  // Fulfillment
+  aliexpressOrderId String?
+  trackingNumber    String?
+  trackingUrl       String?
+  trackingStatus    String?
+
+  // Store
+  storeId           String
+  store             Store       @relation(fields: [storeId], references: [id])
+
+  items             OrderItem[]
+
+  // Metadata
+  notes             String?
+  metadata          Json?
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  paidAt            DateTime?
+  fulfilledAt       DateTime?
+  deliveredAt       DateTime?
+
+  @@index([storeId, orderStatus])
+  @@index([orderNumber])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  ORDERED_FROM_SUPPLIER
+  SHIPPED
+  DELIVERED
+  FAILED
+}
+
+model OrderItem {
+  id                String    @id @default(uuid())
+
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId         String
+  product           Product   @relation(fields: [productId], references: [id])
+
+  productName       String
+  productImage      String
+  variantName       String?
+
+  quantity          Int
+  unitPrice         Float
+  totalPrice        Float
+
+  supplierCost      Float
+  profit            Float
+
+  aliexpressOrderId String?
+  trackingNumber    String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("order_items")
+}
+
+model ImportJob {
+  id              String      @id @default(uuid())
+
+  storeId         String
+
+  sourceType      String      // "aliexpress_search", "aliexpress_url", "bulk_import"
+  sourceQuery     String
+
+  totalProducts   Int         @default(0)
+  importedCount   Int         @default(0)
+  failedCount     Int         @default(0)
+
+  status          JobStatus   @default(PENDING)
+  errorMessage    String?
+
+  settings        Json        // ImportConfig
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  completedAt     DateTime?
+
+  @@map("import_jobs")
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Analytics {
+  id              String    @id @default(uuid())
+
+  storeId         String
+  date            DateTime  @db.Date
+
+  // Revenue metrics
+  revenue         Float     @default(0)
+  orders          Int       @default(0)
+  avgOrderValue   Float     @default(0)
+
+  // Profit metrics
+  profit          Float     @default(0)
+  profitMargin    Float     @default(0)
+  supplierCost    Float     @default(0)
+
+  // Traffic metrics
+  visits          Int       @default(0)
+  uniqueVisitors  Int       @default(0)
+  conversionRate  Float     @default(0)
+
+  // Product metrics
+  productsViewed  Int       @default(0)
+  productsAdded   Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([storeId, date])
+  @@index([storeId, date])
+  @@map("analytics")
+}
+
+model ShippingZone {
+  id              String    @id @default(uuid())
+  name            String
+  countries       String[]
+
+  baseRate        Float
+  perKgRate       Float
+  freeShippingMin Float?
+
+  estimatedDaysMin Int
+  estimatedDaysMax Int
+
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("shipping_zones")
+}

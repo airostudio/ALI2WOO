@@ -1,0 +1,84 @@
+.ali2woo-import-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+  margin: 16px 0;
+}
+
+.ali2woo-import-button:hover {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(59, 130, 246, 0.3);
+}
+
+.ali2woo-import-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ali2woo-import-button svg {
+  flex-shrink: 0;
+}
+
+.ali2woo-import-button .spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ali2woo-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 16px 24px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10001;
+  opacity: 0;
+  transform: translateX(100px);
+  transition: all 0.3s ease;
+}
+
+.ali2woo-notification.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.ali2woo-notification-success {
+  border-left: 4px solid #10b981;
+  color: #047857;
+}
+
+.ali2woo-notification-error {
+  border-left: 4px solid #ef4444;
+  color: #dc2626;
+}
+
+.ali2woo-notification-info {
+  border-left: 4px solid #3b82f6;
+  color: #1d4ed8;
+}
