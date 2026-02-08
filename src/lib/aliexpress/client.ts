@@ -101,7 +101,7 @@ export class AliExpressClient {
     params: Record<string, any> = {}
   ): Promise<T> {
     const timestamp = new Date().getTime();
-    const requestParams = {
+    const requestParams: Record<string, any> = {
       method,
       app_key: this.config.appKey,
       timestamp,
